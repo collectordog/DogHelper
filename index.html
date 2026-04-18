@@ -332,6 +332,7 @@ body {
       <button class="scan-btn" id="scan-btn" title="Force scan chatbox">👁</button>
     </div>
     <div id="status-bar" class="status-bar">Connecting...</div>
+    <div id="debug-log" style="display:none; background:#080603; border:1px solid #4a3210; border-radius:3px; padding:4px 6px; font-size:9px; font-family:monospace; color:#c8a04e; max-height:120px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; margin-top:4px;"></div>
 
   </div>
 </div>
@@ -350,6 +351,20 @@ body {
       </div>
       <div class="toggle-switch">
         <input type="checkbox" id="setting-autoboot">
+        <span class="slider"></span>
+      </div>
+    </label>
+  </div>
+
+  <div style="background:#2b2416;border-radius:8px;padding:10px 12px">
+    <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Debug</div>
+    <label class="setting-row" style="cursor:pointer">
+      <div class="setting-info">
+        <span class="setting-label">Show debug log</span>
+        <span class="setting-desc">Displays all chat lines being read — copy/paste to check detection</span>
+      </div>
+      <div class="toggle-switch">
+        <input type="checkbox" id="setting-debuglog">
         <span class="slider"></span>
       </div>
     </label>
@@ -401,9 +416,18 @@ const lastAlert  = { lootbeam:0, scripture:0, xp:0, lobby:0 };
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function loadSettings() {
-  const def = { lootbeam:true, scripture:true, lobby:true, xp:true };
+  const def = { lootbeam:true, scripture:true, lobby:true, xp:true, debuglog:false };
   try { return Object.assign(def, JSON.parse(localStorage.getItem("doghelper")||"{}")); }
   catch { return def; }
+}
+
+function debugLog(msg) {
+  if (!settings.debuglog) return;
+  const el = document.getElementById("debug-log");
+  if (!el) return;
+  const time = new Date().toLocaleTimeString();
+  el.textContent = "["+time+"] "+msg+"\n" + el.textContent;
+  if (el.textContent.length > 4000) el.textContent = el.textContent.slice(0, 4000);
 }
 function saveSettings() { localStorage.setItem("doghelper", JSON.stringify(settings)); }
 
@@ -513,6 +537,7 @@ function readChat() {
   for (const line of lines) {
     if (!line.fragments || !line.fragments.length) continue;
     const text = line.fragments.map(f=>f.text||"").join("").toLowerCase();
+    debugLog(text);
 
     if (settings.lootbeam) {
       const hasPhrase = LOOTBEAM_PHRASES.some(p=>text.includes(p));
@@ -676,6 +701,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("settings-panel").classList.add("open"));
   document.getElementById("settings-close-btn").addEventListener("click", ()=>
     document.getElementById("settings-panel").classList.remove("open"));
+
+  const debugToggle = document.getElementById("setting-debuglog");
+  debugToggle.checked = settings.debuglog;
+  document.getElementById("debug-log").style.display = settings.debuglog ? "block" : "none";
+  debugToggle.addEventListener("change", () => {
+    settings.debuglog = debugToggle.checked;
+    document.getElementById("debug-log").style.display = settings.debuglog ? "block" : "none";
+    saveSettings();
+  });
 
   updateTimerDisplay(); // show 60:00 on load
   if (settings.lobby) startLobby();
