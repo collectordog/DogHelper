@@ -475,16 +475,6 @@ var chatReader = null;
 function initChatReader() {
   if (typeof Chatbox === "undefined") { updateStatus("Chatbox lib missing"); return; }
   chatReader = new (Chatbox.ChatBoxReader || Chatbox.default)();
-  chatReader.readargs = {
-    colors: [
-      mixColor(245,151,0),   // lootbeam
-      mixColor(255,255,255), // white
-      mixColor(127,169,255), // blue
-      mixColor(30,251,0),    // green
-      mixColor(233,47,47),   // red
-    ],
-    backwards: true
-  };
 
   // Find chatbox, retry every 800ms until found
   var findTimer = setInterval(() => {
