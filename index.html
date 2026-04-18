@@ -61,8 +61,8 @@ body {
 /* ── Icon grid ── */
 .icon-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(4px, 1.5vw, 8px);
 }
 
 .btn-wrap {
@@ -470,7 +470,7 @@ function resetTimer() {
   document.getElementById("timer-display").classList.remove("done");
 }
 
-function updateStatus(msg) { document.getElementById("status-bar").textContent = msg; }
+function updateStatus(msg) { document.getElementById("status-bar").innerHTML = msg; }
 
 document.addEventListener("DOMContentLoaded", () => {
   const cfgUrl = new URL("appconfig.json", window.location.href).href;
