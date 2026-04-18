@@ -124,11 +124,12 @@ body {
   box-shadow: 0 0 6px rgba(200,160,78,0.5), inset 0 0 4px rgba(200,160,78,0.1);
 }
 .icon-btn.alerting {
-  animation: glow .5s ease-in-out infinite alternate;
+  animation: glow .6s ease-in-out infinite alternate;
+  border-color: #f0c040 !important;
 }
 @keyframes glow {
-  from { box-shadow: 0 0 4px rgba(240,192,64,.5); }
-  to   { box-shadow: 0 0 16px rgba(240,192,64,1); }
+  from { box-shadow: 0 0 4px rgba(240,192,64,.6), inset 0 0 4px rgba(240,192,64,.1); border-color: #f0c040; }
+  to   { box-shadow: 0 0 20px rgba(240,192,64,1), 0 0 40px rgba(240,192,64,.5), inset 0 0 8px rgba(240,192,64,.3); }
 }
 
 
