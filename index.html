@@ -499,13 +499,15 @@ var chatReader = null;
 function initChatReader() {
   if (typeof Chatbox === "undefined") { updateStatus("Chatbox lib missing"); return; }
   chatReader = new (Chatbox.ChatBoxReader || Chatbox.default)();
-  // Add colors not in the default readargs so orange lootbeam text is captured
+  // Add missing colors using the library's own mixColor so format matches
+  const _mix = (typeof A1lib !== "undefined" && A1lib.mixColor)
+    ? A1lib.mixColor.bind(A1lib) : mixColor;
   [
     [245,151,0],  // lootbeam orange
     [30,251,0],   // scripture green
     [233,47,47],  // scripture red
   ].forEach(([r,g,b]) => {
-    const mc = mixColor(r,g,b);
+    const mc = _mix(r,g,b);
     if (!chatReader.readargs.colors.includes(mc)) chatReader.readargs.colors.push(mc);
   });
 
