@@ -369,7 +369,8 @@ body {
 // ── Config (from JSON) ────────────────────────────────────────────────────────
 const LOOTBEAM_PHRASES = [
   "golden beam shines over","rainbow shines over","festive beam shines over",
-  "sandcastle scene shines over","water spout sprays over","hearts twirl over"
+  "sandcastle scene shines over","water spout sprays over","hearts twirl over",
+  "flower blooms over","beam shines over","blooms over","twirl over","sprays over"
 ];
 const LOOTBEAM_COLORS  = [[245,151,0]];
 
@@ -523,9 +524,8 @@ function readChat() {
     const text = line.fragments.map(f=>f.text||"").join("").toLowerCase();
 
     if (settings.lootbeam) {
-      const hasCol   = line.fragments.some(f=>fragMatchesColors(f, LOOTBEAM_COLORS));
       const hasPhrase = LOOTBEAM_PHRASES.some(p=>text.includes(p));
-      if (hasCol && hasPhrase) triggerAlert("lootbeam");
+      if (hasPhrase) triggerAlert("lootbeam");
     }
 
     if (settings.scripture) {
