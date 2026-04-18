@@ -1,6 +1,6 @@
 {
-  "appName": "Doghelper",
-  "description": "Lootbeam chatbox alerts and 60-min timer",
+  "appName": "DogHelper",
+  "description": "Lootbeam, Scripture, XP and Lobby alerts",
   "appUrl": "index.html",
   "configUrl": "appconfig.json",
   "iconUrl": "icon.png",
