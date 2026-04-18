@@ -502,6 +502,7 @@ function initChatReader() {
   // Add missing colors using the library's own mixColor so format matches
   const _mix = (typeof A1lib !== "undefined" && A1lib.mixColor)
     ? A1lib.mixColor.bind(A1lib) : mixColor;
+  debugLog("A1lib avail:"+(typeof A1lib !== "undefined")+" sample:"+_mix(245,151,0)+" existing[0]:"+chatReader.readargs.colors[0]);
   [
     [245,151,0],  // lootbeam orange
     [30,251,0],   // scripture green
@@ -510,6 +511,7 @@ function initChatReader() {
     const mc = _mix(r,g,b);
     if (!chatReader.readargs.colors.includes(mc)) chatReader.readargs.colors.push(mc);
   });
+  debugLog("readargs colors count:"+chatReader.readargs.colors.length);
 
   // Find chatbox, retry every 800ms until found
   var findTimer = setInterval(() => {
