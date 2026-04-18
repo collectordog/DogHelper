@@ -577,14 +577,14 @@ function scanScripturePixels() {
   if (typeof alt1 === "undefined" || !chatReader || !chatReader.pos || !chatReader.pos.mainbox) return;
   const r = chatReader.pos.mainbox.rect;
   try {
-    const buf = alt1.capture(r.x, r.y, r.width||r.w, r.height||r.h);
-    if (!buf) return;
-    const px = new Uint8Array(buf);
+    const img = A1lib.captureHold(r.x, r.y, r.width||r.w, r.height||r.h);
+    if (!img || !img.data) return;
+    const px = img.data; // RGBA Uint8ClampedArray
     let green = 0;
     for (let i = 0; i < px.length; i += 4) {
-      // Alt1 capture pixels are BGRA: px[i]=B, px[i+1]=G, px[i+2]=R, px[i+3]=A
+      // RGBA: px[i]=R, px[i+1]=G, px[i+2]=B, px[i+3]=A
       // Lime green = R:30, G:251, B:0
-      if (Math.abs(px[i+2]-30)<25 && Math.abs(px[i+1]-251)<15 && px[i]<25) green++;
+      if (Math.abs(px[i]-30)<25 && Math.abs(px[i+1]-251)<15 && px[i+2]<25) green++;
     }
     debugLog("scripture px: green="+green+" prev="+lastScriptureGreenCount);
     if (green > lastScriptureGreenCount + 15) {
