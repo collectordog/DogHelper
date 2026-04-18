@@ -535,8 +535,8 @@ function readChat() {
   updateStatus("Reading "+lines.length+" lines | last: "+(lines[0]&&lines[0].text||"?").slice(0,40));
 
   for (const line of lines) {
-    if (!line.fragments || !line.fragments.length) continue;
-    const text = line.fragments.map(f=>f.text||"").join("").toLowerCase();
+    const text = (line.text || line.fragments?.map(f=>f.text||"").join("") || "").toLowerCase();
+    if (!text) continue;
     debugLog(text);
 
     if (settings.lootbeam) {
