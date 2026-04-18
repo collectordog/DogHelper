@@ -298,7 +298,7 @@ body {
 <div id="main-app" style="display:none; flex-direction:column; flex:1; min-height:0;">
 
   <div class="header">
-    <h1>🐾 Doghelper</h1>
+    <h1>🐾 DogHelper</h1>
     <button class="settings-btn" id="settings-open-btn" title="Settings">⚙</button>
   </div>
 
@@ -374,34 +374,35 @@ body {
   </div>
 </div>
 
+<script src="https://unpkg.com/@runeapps/alt1@3.7.0/dist/base.min.js"></script>
+<script src="https://unpkg.com/@runeapps/alt1@3.7.0/dist/chatbox.min.js"></script>
 <script>
-// ── Alerters from JSON ────────────────────────────────────────────────────────
-const CHAT_ALERTERS = [
-  {
-    id: "lootbeam",
-    colors: [[245,151,0]],
-    lastAlert: 0
-  },
-  {
-    id: "scripture",
-    colors: [[255,255,255],[127,169,255],[30,251,0],[233,47,47]],
-    lastAlert: 0
-  }
+// ── Config (from JSON) ────────────────────────────────────────────────────────
+const LOOTBEAM_PHRASES = [
+  "golden beam shines over","rainbow shines over","festive beam shines over",
+  "sandcastle scene shines over","water spout sprays over","hearts twirl over"
 ];
+const LOOTBEAM_COLORS  = [[245,151,0]];
 
-const LOBBY_DELAY = 570;   // 9:30 — matches JSON delay:570
-const XP_IDLE_MS  = 3000;  // 3s no XP — matches JSON delay:3
-const COLOR_TOL   = 35;
-const MIN_PIX     = 40;
-const SCAN_MS     = 600;
+const SCRIPTURE_PHRASES = ["soul appears"];
+const SCRIPTURE_COLORS  = [[255,255,255],[127,169,255],[30,251,0],[233,47,47]];
 
-let settings = loadSettings();
+const LOBBY_DELAY  = 570;   // 9:30
+const XP_IDLE_MS   = 3000;  // delay:3 from JSON
+const ALERT_COOLDOWN = 5000;
+const COLOR_TOL    = 40;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let settings     = loadSettings();
 let timerSeconds = LOBBY_DELAY;
 let timerRunning = false;
 let timerInterval = null;
-let lastXpSeen = Date.now();
-let xpAlerted = false;
+let lastXpSeen   = Date.now();
+let xpAlerted    = false;
+let emptyReads   = 0;
+const lastAlert  = { lootbeam:0, scripture:0, xp:0, lobby:0 };
 
+// ── Settings ──────────────────────────────────────────────────────────────────
 function loadSettings() {
   const def = { lootbeam:true, scripture:true, lobby:true, xp:true };
   try { return Object.assign(def, JSON.parse(localStorage.getItem("doghelper")||"{}")); }
@@ -427,55 +428,119 @@ function playAlert(urgent) {
   } catch(e) {}
 }
 
-// ── Pixel helpers ─────────────────────────────────────────────────────────────
-function colMatch(r,g,b,c) {
-  return Math.abs(r-c[0])<COLOR_TOL && Math.abs(g-c[1])<COLOR_TOL && Math.abs(b-c[2])<COLOR_TOL;
-}
-function hasColor(pixels, colors) {
-  for (const c of colors) {
-    let n=0;
-    for (let i=0;i<pixels.length;i+=4)
-      if (colMatch(pixels[i],pixels[i+1],pixels[i+2],c) && ++n>=MIN_PIX) return true;
-  }
-  return false;
-}
-
 // ── Alert trigger ─────────────────────────────────────────────────────────────
 function triggerAlert(id, urgent=false) {
+  const now = Date.now();
+  if (now - lastAlert[id] < ALERT_COOLDOWN) return;
+  lastAlert[id] = now;
   playAlert(urgent);
-  const btn=document.getElementById("btn-"+id);
+  const btn = document.getElementById("btn-"+id);
   if (btn) { btn.classList.add("alerting"); setTimeout(()=>btn.classList.remove("alerting"),3000); }
   document.getElementById("last-alert").textContent =
     "["+new Date().toLocaleTimeString()+"] "+id+" detected!";
 }
 
-// ── Scan loop ─────────────────────────────────────────────────────────────────
-function scan() {
-  if (typeof alt1==="undefined"||!alt1.permissionPixel) return;
+// ── Color helpers ─────────────────────────────────────────────────────────────
+function mixColor(r,g,b) { return r|(g<<8)|(b<<16); }
+function colorDist(a,b) {
+  return Math.sqrt(Math.pow(a[0]-b[0],2)+Math.pow(a[1]-b[1],2)+Math.pow(a[2]-b[2],2));
+}
+function fragMatchesColors(frag, colors, tol=COLOR_TOL) {
+  return colors.some(c => colorDist(frag.color, c) <= tol);
+}
+
+// ── Chatbox reader ────────────────────────────────────────────────────────────
+var chatReader = null;
+
+function initChatReader() {
+  if (typeof Chatbox === "undefined") { updateStatus("Chatbox lib missing"); return; }
+  chatReader = new Chatbox.default();
+  chatReader.readargs = {
+    colors: [
+      mixColor(245,151,0),   // lootbeam
+      mixColor(255,255,255), // white
+      mixColor(127,169,255), // blue
+      mixColor(30,251,0),    // green
+      mixColor(233,47,47),   // red
+    ],
+    backwards: true
+  };
+
+  // Find chatbox, retry every 800ms until found
+  var findTimer = setInterval(() => {
+    try {
+      chatReader.find();
+      if (chatReader.pos && chatReader.pos.mainbox) {
+        clearInterval(findTimer);
+        updateStatus("Chatbox found — monitoring");
+        setInterval(readChat, 250);
+      }
+    } catch(e) {}
+  }, 800);
+
+  // Re-detect if chatbox moves or is lost
+  setInterval(() => {
+    try {
+      if (!chatReader.pos || !chatReader.pos.mainbox) chatReader.find();
+    } catch(e) {}
+  }, 2000);
+
+  // XP pixel scan runs independently
+  setInterval(scanXp, 600);
+}
+
+// ── Chat read loop (250ms) ────────────────────────────────────────────────────
+function readChat() {
+  if (!chatReader) return;
+  var lines;
+  try { lines = chatReader.read(); } catch(e) { return; }
+
+  if (!lines || !lines.length) {
+    if (++emptyReads >= 10) { emptyReads=0; try { chatReader.pos=null; chatReader.find(); } catch(e){} }
+    return;
+  }
+  emptyReads = 0;
+
+  for (const line of lines) {
+    if (!line.fragments || !line.fragments.length) continue;
+    const text = line.fragments.map(f=>f.text||"").join("").toLowerCase();
+
+    if (settings.lootbeam) {
+      const hasCol   = line.fragments.some(f=>fragMatchesColors(f, LOOTBEAM_COLORS));
+      const hasPhrase = LOOTBEAM_PHRASES.some(p=>text.includes(p));
+      if (hasCol && hasPhrase) triggerAlert("lootbeam");
+    }
+
+    if (settings.scripture) {
+      const hasCol   = line.fragments.some(f=>fragMatchesColors(f, SCRIPTURE_COLORS, 50));
+      const hasPhrase = SCRIPTURE_PHRASES.some(p=>text.includes(p));
+      if (hasCol && hasPhrase) triggerAlert("scripture");
+    }
+  }
+}
+
+// ── Force scan (scan-btn) ─────────────────────────────────────────────────────
+function forceScan() {
+  readChat();
+  scanXp();
+}
+
+// ── XP drop scan (pixel, 600ms) ───────────────────────────────────────────────
+function scanXp() {
+  if (!settings.xp || typeof alt1==="undefined" || !alt1.permissionPixel) return;
   try {
-    const rsW=alt1.rsWidth,rsH=alt1.rsHeight,rsX=alt1.rsX,rsY=alt1.rsY;
+    const rsW=alt1.rsWidth, rsH=alt1.rsHeight, rsX=alt1.rsX, rsY=alt1.rsY;
     if (!rsW||!rsH) return;
-
-    // Chatbox region (bottom-left)
-    const chat = alt1.capture(rsX, rsY+Math.floor(rsH*0.78), Math.floor(rsW*0.62), Math.floor(rsH*0.22));
-    if (chat) {
-      const now=Date.now();
-      for (const a of CHAT_ALERTERS) {
-        if (!settings[a.id] || now-a.lastAlert<3000) continue;
-        if (hasColor(chat, a.colors)) { a.lastAlert=now; triggerAlert(a.id); }
-      }
+    const px = alt1.capture(rsX+Math.floor(rsW*0.65), rsY+Math.floor(rsH*0.03),
+                            Math.floor(rsW*0.35), Math.floor(rsH*0.35));
+    if (!px) return;
+    let hasXp = false;
+    for (let i=0; i<px.length; i+=4) {
+      if (px[i]>200 && px[i+1]>180 && px[i+2]<80) { hasXp=true; break; }
     }
-
-    // XP drops region (top-right) — alert if no XP for 3s
-    if (settings.xp) {
-      const xp = alt1.capture(rsX+Math.floor(rsW*0.65), rsY+Math.floor(rsH*0.03), Math.floor(rsW*0.35), Math.floor(rsH*0.35));
-      if (xp && hasColor(xp,[[255,200,0],[255,165,0],[180,255,80]],5)) {
-        lastXpSeen=Date.now(); xpAlerted=false;
-      } else if (Date.now()-lastXpSeen>XP_IDLE_MS && !xpAlerted) {
-        xpAlerted=true; triggerAlert("xp");
-      }
-    }
-  } catch(e) { console.error(e); }
+    if (hasXp) { lastXpSeen=Date.now(); xpAlerted=false; }
+    else if (Date.now()-lastXpSeen > XP_IDLE_MS && !xpAlerted) { xpAlerted=true; triggerAlert("xp"); }
+  } catch(e) {}
 }
 
 // ── Lobby timer ───────────────────────────────────────────────────────────────
@@ -511,38 +576,35 @@ function resetTimer() {
 
 function updateStatus(msg) { document.getElementById("status-bar").innerHTML=msg; }
 
-// ── Toggle button ─────────────────────────────────────────────────────────────
+// ── Toggle buttons ────────────────────────────────────────────────────────────
 function toggleBtn(id) {
   settings[id]=!settings[id];
   const btn=document.getElementById("btn-"+id);
-  btn.classList.toggle("on",settings[id]);
-  btn.classList.toggle("off",!settings[id]);
-  // Lobby button drives the timer
+  btn.classList.toggle("on", settings[id]);
+  btn.classList.toggle("off", !settings[id]);
   if (id==="lobby") { settings[id] ? (resetTimer(),startTimer()) : pauseTimer(); }
-  // XP toggle resets idle tracking
-  if (id==="xp") { lastXpSeen=Date.now(); xpAlerted=false; }
+  if (id==="xp")    { lastXpSeen=Date.now(); xpAlerted=false; }
   saveSettings();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  const cfgUrl=new URL("appconfig.json",window.location.href).href;
+  const cfgUrl = new URL("appconfig.json", window.location.href).href;
   document.getElementById("add-screen").style.display="none";
   document.getElementById("main-app").style.display="flex";
 
-  if (typeof alt1!=="undefined") {
+  if (typeof alt1 !== "undefined") {
     alt1.identifyAppUrl(cfgUrl);
     if (!alt1.permissionPixel) {
-      updateStatus('\u26a0 Not added — <a href="alt1://addapp/'+cfgUrl+'" style="color:#f59e0b">click here</a>');
+      updateStatus('\u26a0 Not added — <a href="alt1://addapp/'+cfgUrl+'" style="color:#f0c040">click here</a>');
     } else {
-      updateStatus("Alt1 connected — scanning...");
-      setInterval(scan, SCAN_MS);
+      updateStatus("Alt1 connected — finding chatbox...");
+      initChatReader();
     }
   } else {
     updateStatus("Open in Alt1 to use");
   }
 
-  // Init all buttons
   ["lootbeam","scripture","lobby","xp"].forEach(id => {
     const btn=document.getElementById("btn-"+id);
     btn.classList.toggle("on", settings[id]);
@@ -550,26 +612,22 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", ()=>toggleBtn(id));
   });
 
-  // Timer controls
   updateTimerDisplay();
   document.getElementById("timer-play").addEventListener("click", ()=>timerRunning?pauseTimer():startTimer());
   document.getElementById("timer-reset").addEventListener("click", resetTimer);
 
-  // Force scan button
   document.getElementById("scan-btn").addEventListener("click", () => {
-    const btn = document.getElementById("scan-btn");
+    const btn=document.getElementById("scan-btn");
     btn.classList.add("scanning");
-    scan();
-    setTimeout(() => btn.classList.remove("scanning"), 800);
+    forceScan();
+    setTimeout(()=>btn.classList.remove("scanning"), 800);
   });
 
-  // Settings panel
   document.getElementById("settings-open-btn").addEventListener("click", ()=>
     document.getElementById("settings-panel").classList.add("open"));
   document.getElementById("settings-close-btn").addEventListener("click", ()=>
     document.getElementById("settings-panel").classList.remove("open"));
 
-  // Auto-start lobby timer if enabled
   if (settings.lobby) { resetTimer(); startTimer(); }
 });
 </script>
