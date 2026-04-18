@@ -422,14 +422,37 @@ function playAlert(urgent) {
   } catch(e) {}
 }
 
+// ── Lootbeam repeating sound ──────────────────────────────────────────────────
+var lootbeamSoundInterval = null;
+
+function playWav() {
+  try { new Audio("alert.wav").play(); } catch(e) {}
+}
+
+function startLootbeamSound() {
+  stopLootbeamSound();
+  playWav();
+  lootbeamSoundInterval = setInterval(playWav, 5000);
+}
+
+function stopLootbeamSound() {
+  if (lootbeamSoundInterval) { clearInterval(lootbeamSoundInterval); lootbeamSoundInterval = null; }
+}
+
 // ── Alert trigger ─────────────────────────────────────────────────────────────
 function triggerAlert(id, urgent=false) {
   const now = Date.now();
   if (now - lastAlert[id] < ALERT_COOLDOWN) return;
   lastAlert[id] = now;
-  playAlert(urgent);
+
+  if (id === "lootbeam") {
+    startLootbeamSound();
+  } else {
+    playAlert(urgent);
+  }
+
   const btn = document.getElementById("btn-"+id);
-  if (btn) { btn.classList.add("alerting"); setTimeout(()=>btn.classList.remove("alerting"),3000); }
+  if (btn) { btn.classList.add("alerting"); }
   document.getElementById("last-alert").textContent =
     "["+new Date().toLocaleTimeString()+"] "+id+" detected!";
 }
@@ -588,8 +611,14 @@ function updateStatus(msg) { document.getElementById("status-bar").innerHTML=msg
 
 // ── Toggle buttons ────────────────────────────────────────────────────────────
 function toggleBtn(id) {
-  settings[id]=!settings[id];
   const btn=document.getElementById("btn-"+id);
+  // If lootbeam is alerting, clicking dismisses the sound without toggling
+  if (id==="lootbeam" && btn.classList.contains("alerting")) {
+    stopLootbeamSound();
+    btn.classList.remove("alerting");
+    return;
+  }
+  settings[id]=!settings[id];
   btn.classList.toggle("on", settings[id]);
   btn.classList.toggle("off", !settings[id]);
   if (id==="lobby") { settings[id] ? startLobby() : stopLobby(); }
