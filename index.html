@@ -60,8 +60,7 @@ body {
 /* ── Icon grid ── */
 .icon-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: clamp(4px, 1.5vw, 8px);
   flex-shrink: 0;
 }
@@ -348,174 +347,194 @@ body {
 </div>
 
 <script>
-const LOOTBEAM_PHRASES = [
-  "golden beam shines over",
-  "rainbow shines over",
-  "festive beam shines over",
-  "sandcastle scene shines over",
-  "water spout sprays over",
-  "hearts twirl over",
+// ── Alerters from JSON ────────────────────────────────────────────────────────
+const CHAT_ALERTERS = [
+  {
+    id: "lootbeam",
+    colors: [[245,151,0]],
+    lastAlert: 0
+  },
+  {
+    id: "scripture",
+    colors: [[255,255,255],[127,169,255],[30,251,0],[233,47,47]],
+    lastAlert: 0
+  }
 ];
-const LOOTBEAM_COLOR = [245, 151, 0];
-const COLOR_TOLERANCE = 35;
-const MIN_COLOR_PIXELS = 40;
-const SCAN_MS = 600;
-const TIMER_TOTAL = 60 * 60;
+
+const LOBBY_DELAY = 570;   // 9:30 — matches JSON delay:570
+const XP_IDLE_MS  = 3000;  // 3s no XP — matches JSON delay:3
+const COLOR_TOL   = 35;
+const MIN_PIX     = 40;
+const SCAN_MS     = 600;
 
 let settings = loadSettings();
-let timerSeconds = TIMER_TOTAL;
+let timerSeconds = LOBBY_DELAY;
 let timerRunning = false;
 let timerInterval = null;
-let lastAlertTime = 0;
+let lastXpSeen = Date.now();
+let xpAlerted = false;
 
 function loadSettings() {
-  try { return Object.assign({ lootbeamEnabled: true, autoBoot: false }, JSON.parse(localStorage.getItem("doghelper") || "{}")); }
-  catch { return { lootbeamEnabled: true, autoBoot: false }; }
+  const def = { lootbeam:true, scripture:true, lobby:true, xp:true };
+  try { return Object.assign(def, JSON.parse(localStorage.getItem("doghelper")||"{}")); }
+  catch { return def; }
 }
 function saveSettings() { localStorage.setItem("doghelper", JSON.stringify(settings)); }
 
+// ── Audio ─────────────────────────────────────────────────────────────────────
 function playAlert(urgent) {
   try {
     const ctx = new AudioContext();
-    const notes = urgent ? [880, 1100, 880] : [659, 784, 1047];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
+    const notes = urgent ? [880,1100,880] : [659,784,1047];
+    notes.forEach((freq,i) => {
+      const osc=ctx.createOscillator(), gain=ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.value = freq; osc.type = "sine";
-      const t = ctx.currentTime + i * 0.15;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.35, t + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.start(t); osc.stop(t + 0.4);
+      osc.frequency.value=freq; osc.type="sine";
+      const t=ctx.currentTime+i*0.15;
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(0.35,t+0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+      osc.start(t); osc.stop(t+0.4);
     });
   } catch(e) {}
 }
 
-function colorMatches(r, g, b) {
-  return Math.abs(r-LOOTBEAM_COLOR[0]) < COLOR_TOLERANCE &&
-         Math.abs(g-LOOTBEAM_COLOR[1]) < COLOR_TOLERANCE &&
-         Math.abs(b-LOOTBEAM_COLOR[2]) < COLOR_TOLERANCE;
+// ── Pixel helpers ─────────────────────────────────────────────────────────────
+function colMatch(r,g,b,c) {
+  return Math.abs(r-c[0])<COLOR_TOL && Math.abs(g-c[1])<COLOR_TOL && Math.abs(b-c[2])<COLOR_TOL;
+}
+function hasColor(pixels, colors) {
+  for (const c of colors) {
+    let n=0;
+    for (let i=0;i<pixels.length;i+=4)
+      if (colMatch(pixels[i],pixels[i+1],pixels[i+2],c) && ++n>=MIN_PIX) return true;
+  }
+  return false;
 }
 
-function scanChatbox() {
-  if (typeof alt1 === "undefined" || !alt1.permissionPixel) return;
+// ── Alert trigger ─────────────────────────────────────────────────────────────
+function triggerAlert(id, urgent=false) {
+  playAlert(urgent);
+  const btn=document.getElementById("btn-"+id);
+  if (btn) { btn.classList.add("alerting"); setTimeout(()=>btn.classList.remove("alerting"),3000); }
+  document.getElementById("last-alert").textContent =
+    "["+new Date().toLocaleTimeString()+"] "+id+" detected!";
+}
+
+// ── Scan loop ─────────────────────────────────────────────────────────────────
+function scan() {
+  if (typeof alt1==="undefined"||!alt1.permissionPixel) return;
   try {
-    const rsW = alt1.rsWidth, rsH = alt1.rsHeight, rsX = alt1.rsX, rsY = alt1.rsY;
-    if (!rsW || !rsH) return;
-    const cx = rsX, cy = rsY + Math.floor(rsH * 0.78);
-    const cw = Math.floor(rsW * 0.62), ch = Math.floor(rsH * 0.22);
-    const pixels = alt1.capture(cx, cy, cw, ch);
-    if (!pixels) return;
-    updateStatus("Alt1 connected — chatbox found");
-    if (!settings.lootbeamEnabled || Date.now() - lastAlertTime < 3000) return;
-    let count = 0;
-    for (let i = 0; i < pixels.length; i += 4)
-      if (colorMatches(pixels[i], pixels[i+1], pixels[i+2])) count++;
-    if (count >= MIN_COLOR_PIXELS) { lastAlertTime = Date.now(); triggerLootbeamAlert(); }
+    const rsW=alt1.rsWidth,rsH=alt1.rsHeight,rsX=alt1.rsX,rsY=alt1.rsY;
+    if (!rsW||!rsH) return;
+
+    // Chatbox region (bottom-left)
+    const chat = alt1.capture(rsX, rsY+Math.floor(rsH*0.78), Math.floor(rsW*0.62), Math.floor(rsH*0.22));
+    if (chat) {
+      const now=Date.now();
+      for (const a of CHAT_ALERTERS) {
+        if (!settings[a.id] || now-a.lastAlert<3000) continue;
+        if (hasColor(chat, a.colors)) { a.lastAlert=now; triggerAlert(a.id); }
+      }
+    }
+
+    // XP drops region (top-right) — alert if no XP for 3s
+    if (settings.xp) {
+      const xp = alt1.capture(rsX+Math.floor(rsW*0.65), rsY+Math.floor(rsH*0.03), Math.floor(rsW*0.35), Math.floor(rsH*0.35));
+      if (xp && hasColor(xp,[[255,200,0],[255,165,0],[180,255,80]],5)) {
+        lastXpSeen=Date.now(); xpAlerted=false;
+      } else if (Date.now()-lastXpSeen>XP_IDLE_MS && !xpAlerted) {
+        xpAlerted=true; triggerAlert("xp");
+      }
+    }
   } catch(e) { console.error(e); }
 }
 
-function triggerLootbeamAlert() {
-  playAlert(false);
-  const btn = document.getElementById("btn-lootbeam");
-  btn.classList.add("alerting");
-  setTimeout(() => btn.classList.remove("alerting"), 3000);
-  document.getElementById("last-alert").textContent =
-    "[" + new Date().toLocaleTimeString() + "] Lootbeam detected!";
-}
-
-// Timer
-function fmt(s) {
-  return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0");
-}
-function updateTimerDisplay() { document.getElementById("timer-display").textContent = fmt(timerSeconds); }
-function setPlayIcon(running) {
-  const icon = document.getElementById("play-icon");
-  const btn  = document.getElementById("timer-play");
-  if (running) {
-    icon.outerHTML = '<div class="pause-icon" id="play-icon"><span></span><span></span></div>';
-    btn.classList.add("paused");
-  } else {
-    icon.outerHTML = '<div class="play-icon" id="play-icon"></div>';
-    btn.classList.remove("paused");
-  }
+// ── Lobby timer ───────────────────────────────────────────────────────────────
+function fmt(s) { return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
+function updateTimerDisplay() { document.getElementById("timer-display").textContent=fmt(timerSeconds); }
+function setPlayIcon(on) {
+  const icon=document.getElementById("play-icon"), btn=document.getElementById("timer-play");
+  icon.outerHTML = on
+    ? '<div class="pause-icon" id="play-icon"><span></span><span></span></div>'
+    : '<div class="play-icon" id="play-icon"></div>';
+  btn.classList.toggle("paused",on);
 }
 function startTimer() {
   if (timerRunning) return;
-  timerRunning = true;
-  setPlayIcon(true);
+  timerRunning=true; setPlayIcon(true);
   document.getElementById("timer-display").classList.remove("done");
-  timerInterval = setInterval(() => {
-    if (timerSeconds <= 0) {
-      clearInterval(timerInterval); timerRunning = false; setPlayIcon(false);
+  timerInterval=setInterval(()=>{
+    if (timerSeconds<=0) {
+      clearInterval(timerInterval); timerRunning=false; setPlayIcon(false);
       document.getElementById("timer-display").classList.add("done");
-      playAlert(true); return;
+      triggerAlert("lobby",true); return;
     }
     timerSeconds--; updateTimerDisplay();
-  }, 1000);
+  },1000);
 }
 function pauseTimer() {
-  timerRunning = false; clearInterval(timerInterval); timerInterval = null; setPlayIcon(false);
+  timerRunning=false; clearInterval(timerInterval); timerInterval=null; setPlayIcon(false);
 }
 function resetTimer() {
-  pauseTimer(); timerSeconds = TIMER_TOTAL; updateTimerDisplay();
+  pauseTimer(); timerSeconds=LOBBY_DELAY; updateTimerDisplay();
   document.getElementById("timer-display").classList.remove("done");
 }
 
-function updateStatus(msg) { document.getElementById("status-bar").innerHTML = msg; }
+function updateStatus(msg) { document.getElementById("status-bar").innerHTML=msg; }
 
+// ── Toggle button ─────────────────────────────────────────────────────────────
+function toggleBtn(id) {
+  settings[id]=!settings[id];
+  const btn=document.getElementById("btn-"+id);
+  btn.classList.toggle("on",settings[id]);
+  btn.classList.toggle("off",!settings[id]);
+  // Lobby button drives the timer
+  if (id==="lobby") { settings[id] ? (resetTimer(),startTimer()) : pauseTimer(); }
+  // XP toggle resets idle tracking
+  if (id==="xp") { lastXpSeen=Date.now(); xpAlerted=false; }
+  saveSettings();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  const cfgUrl = new URL("appconfig.json", window.location.href).href;
+  const cfgUrl=new URL("appconfig.json",window.location.href).href;
+  document.getElementById("add-screen").style.display="none";
+  document.getElementById("main-app").style.display="flex";
 
-  // Always show the main app
-  document.getElementById("add-screen").style.display = "none";
-  document.getElementById("main-app").style.display = "flex";
-
-  if (typeof alt1 !== "undefined") {
+  if (typeof alt1!=="undefined") {
     alt1.identifyAppUrl(cfgUrl);
     if (!alt1.permissionPixel) {
-      updateStatus('\u26a0 Not added yet — <a href="alt1://addapp/' + cfgUrl + '" style="color:#f59e0b">click here to add</a>');
+      updateStatus('\u26a0 Not added — <a href="alt1://addapp/'+cfgUrl+'" style="color:#f59e0b">click here</a>');
     } else {
       updateStatus("Alt1 connected — scanning...");
-      setInterval(scanChatbox, SCAN_MS);
+      setInterval(scan, SCAN_MS);
     }
   } else {
-    updateStatus("Open in Alt1 to add");
+    updateStatus("Open in Alt1 to use");
   }
 
-  // Lootbeam toggle
-  const lbBtn = document.getElementById("btn-lootbeam");
-  lbBtn.classList.toggle("on", settings.lootbeamEnabled);
-  lbBtn.classList.toggle("off", !settings.lootbeamEnabled);
-  lbBtn.addEventListener("click", () => {
-    settings.lootbeamEnabled = !settings.lootbeamEnabled;
-    lbBtn.classList.toggle("on", settings.lootbeamEnabled);
-    lbBtn.classList.toggle("off", !settings.lootbeamEnabled);
-    saveSettings();
+  // Init all buttons
+  ["lootbeam","scripture","lobby","xp"].forEach(id => {
+    const btn=document.getElementById("btn-"+id);
+    btn.classList.toggle("on", settings[id]);
+    btn.classList.toggle("off", !settings[id]);
+    btn.addEventListener("click", ()=>toggleBtn(id));
   });
 
-  // Timer
+  // Timer controls
   updateTimerDisplay();
-  document.getElementById("timer-play").addEventListener("click", () => timerRunning ? pauseTimer() : startTimer());
+  document.getElementById("timer-play").addEventListener("click", ()=>timerRunning?pauseTimer():startTimer());
   document.getElementById("timer-reset").addEventListener("click", resetTimer);
 
-  // Settings
-  document.getElementById("settings-open-btn").addEventListener("click", () =>
+  // Settings panel
+  document.getElementById("settings-open-btn").addEventListener("click", ()=>
     document.getElementById("settings-panel").classList.add("open"));
-  document.getElementById("settings-close-btn").addEventListener("click", () =>
+  document.getElementById("settings-close-btn").addEventListener("click", ()=>
     document.getElementById("settings-panel").classList.remove("open"));
 
-  const abEl = document.getElementById("setting-autoboot");
-  abEl.checked = settings.autoBoot;
-  abEl.addEventListener("change", () => { settings.autoBoot = abEl.checked; saveSettings(); });
-
-  const list = document.getElementById("trigger-list");
-  LOOTBEAM_PHRASES.forEach(p => {
-    const li = document.createElement("li");
-    li.className = "trigger-item";
-    li.textContent = '"' + p + '"';
-    list.appendChild(li);
-  });
+  // Auto-start lobby timer if enabled
+  if (settings.lobby) { resetTimer(); startTimer(); }
 });
 </script>
 </body>
