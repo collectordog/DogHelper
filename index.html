@@ -387,16 +387,23 @@ const LOOTBEAM_COLORS  = [[245,151,0]];
 const SCRIPTURE_PHRASES = ["soul appears"];
 const SCRIPTURE_COLORS  = [[255,255,255],[127,169,255],[30,251,0],[233,47,47]];
 
-const LOBBY_DELAY  = 900;   // 15:00
-const XP_IDLE_MS   = 3000;  // delay:3 from JSON
+const LOBBY_DELAY    = 900;   // 15:00 background lobby alert
+const TIMER_TOTAL    = 3600;  // 60:00 manual timer
+const XP_IDLE_MS     = 3000;
 const ALERT_COOLDOWN = 5000;
-const COLOR_TOL    = 40;
+const COLOR_TOL      = 40;
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let settings     = loadSettings();
-let timerSeconds = LOBBY_DELAY;
-let timerRunning = false;
+let settings      = loadSettings();
+// Manual 60-min timer
+let timerSeconds  = TIMER_TOTAL;
+let timerRunning  = false;
 let timerInterval = null;
+// Background lobby countdown
+let lobbySeconds  = LOBBY_DELAY;
+let lobbyRunning  = false;
+let lobbyInterval = null;
+
 let lastXpSeen   = Date.now();
 let xpAlerted    = false;
 let emptyReads   = 0;
@@ -543,7 +550,7 @@ function scanXp() {
   } catch(e) {}
 }
 
-// ── Lobby timer ───────────────────────────────────────────────────────────────
+// ── Manual 60-min timer ───────────────────────────────────────────────────────
 function fmt(s) { return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
 function updateTimerDisplay() { document.getElementById("timer-display").textContent=fmt(timerSeconds); }
 function setPlayIcon(on) {
@@ -561,7 +568,7 @@ function startTimer() {
     if (timerSeconds<=0) {
       clearInterval(timerInterval); timerRunning=false; setPlayIcon(false);
       document.getElementById("timer-display").classList.add("done");
-      triggerAlert("lobby",true); return;
+      return;
     }
     timerSeconds--; updateTimerDisplay();
   },1000);
@@ -570,8 +577,24 @@ function pauseTimer() {
   timerRunning=false; clearInterval(timerInterval); timerInterval=null; setPlayIcon(false);
 }
 function resetTimer() {
-  pauseTimer(); timerSeconds=LOBBY_DELAY; updateTimerDisplay();
+  pauseTimer(); timerSeconds=TIMER_TOTAL; updateTimerDisplay();
   document.getElementById("timer-display").classList.remove("done");
+}
+
+// ── Background lobby countdown ────────────────────────────────────────────────
+function startLobby() {
+  if (lobbyRunning) return;
+  lobbyRunning=true; lobbySeconds=LOBBY_DELAY;
+  lobbyInterval=setInterval(()=>{
+    if (lobbySeconds<=0) {
+      triggerAlert("lobby", true);
+      lobbySeconds=LOBBY_DELAY; // auto-reset and keep going
+    }
+    lobbySeconds--;
+  },1000);
+}
+function stopLobby() {
+  lobbyRunning=false; clearInterval(lobbyInterval); lobbyInterval=null;
 }
 
 function updateStatus(msg) { document.getElementById("status-bar").innerHTML=msg; }
@@ -582,7 +605,7 @@ function toggleBtn(id) {
   const btn=document.getElementById("btn-"+id);
   btn.classList.toggle("on", settings[id]);
   btn.classList.toggle("off", !settings[id]);
-  if (id==="lobby") { settings[id] ? (resetTimer(),startTimer()) : pauseTimer(); }
+  if (id==="lobby") { settings[id] ? startLobby() : stopLobby(); }
   if (id==="xp")    { lastXpSeen=Date.now(); xpAlerted=false; }
   saveSettings();
 }
@@ -612,7 +635,6 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", ()=>toggleBtn(id));
   });
 
-  updateTimerDisplay();
   document.getElementById("timer-play").addEventListener("click", ()=>timerRunning?pauseTimer():startTimer());
   document.getElementById("timer-reset").addEventListener("click", resetTimer);
 
@@ -628,7 +650,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("settings-close-btn").addEventListener("click", ()=>
     document.getElementById("settings-panel").classList.remove("open"));
 
-  if (settings.lobby) { resetTimer(); startTimer(); }
+  updateTimerDisplay(); // show 60:00 on load
+  if (settings.lobby) startLobby();
 });
 </script>
 </body>
