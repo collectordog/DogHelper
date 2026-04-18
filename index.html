@@ -14,7 +14,7 @@ html, body {
 body {
   font-family: 'Segoe UI', Tahoma, sans-serif;
   background: #2b2416;
-  color: #e5e7eb;
+  color: #f59e0b;
   font-size: 13px;
   display: flex;
   flex-direction: column;
@@ -164,9 +164,9 @@ body {
 .timer-display.done { color: #ef4444; }
 
 .timer-play {
-  width: clamp(32px, 10vw, 52px);
-  height: clamp(32px, 10vw, 52px);
-  background: rgb(6, 7, 105);
+  width: 32px;
+  height: 32px;
+  background: #f59e0b;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -176,9 +176,9 @@ body {
   flex-shrink: 0;
   transition: background .15s;
 }
-.timer-play:hover { background: rgb(10, 12, 140); }
-.timer-play.paused { background: #f59e0b; }
-.timer-play.paused:hover { background: #d97706; }
+.timer-play:hover { background: #d97706; }
+.timer-play.paused { background: #6b7280; }
+.timer-play.paused:hover { background: #4b5563; }
 
 /* Play triangle */
 .play-icon {
@@ -201,16 +201,30 @@ body {
 }
 
 .timer-reset {
-  width: clamp(32px, 10vw, 52px);
-  height: clamp(32px, 10vw, 52px);
+  width: 32px;
+  height: 32px;
   background: #d4cfc6;
   border: none; border-radius: 6px;
-  cursor: pointer; font-size: clamp(10px, 3vw, 16px);
+  cursor: pointer; font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: background .15s;
 }
 .timer-reset:hover { background: #bbb6ac; }
+
+.scan-btn {
+  width: 32px;
+  height: 32px;
+  background: #374151;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s;
+  color: #f59e0b;
+}
+.scan-btn:hover { background: #4b5563; }
+.scan-btn.scanning { background: #f59e0b; color: #1a1a1a; }
 
 /* ── Settings overlay ── */
 #settings-panel {
@@ -311,6 +325,7 @@ body {
     <div>
       <div class="timer-box">
         <div id="timer-display" class="timer-display">60:00</div>
+        <button class="scan-btn" id="scan-btn" title="Force scan chatbox">👁</button>
         <button class="timer-reset" id="timer-reset" title="Reset">↺</button>
         <button class="timer-play" id="timer-play">
           <div class="play-icon" id="play-icon"></div>
@@ -527,6 +542,14 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTimerDisplay();
   document.getElementById("timer-play").addEventListener("click", ()=>timerRunning?pauseTimer():startTimer());
   document.getElementById("timer-reset").addEventListener("click", resetTimer);
+
+  // Force scan button
+  document.getElementById("scan-btn").addEventListener("click", () => {
+    const btn = document.getElementById("scan-btn");
+    btn.classList.add("scanning");
+    scan();
+    setTimeout(() => btn.classList.remove("scanning"), 800);
+  });
 
   // Settings panel
   document.getElementById("settings-open-btn").addEventListener("click", ()=>
