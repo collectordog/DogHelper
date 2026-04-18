@@ -65,33 +65,44 @@ body {
   gap: 6px;
 }
 
+.btn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #b0a898;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
 .icon-btn {
-  height: clamp(40px, 15vh, 80px);
+  width: 100%;
+  aspect-ratio: 1;
   background: #f5f0e8;
   border: 3px solid #d4cfc6;
   border-radius: 12px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   position: relative;
   transition: border-color .2s, box-shadow .2s;
-  padding: 6px;
-  gap: 4px;
+  padding: 8px;
 }
 .icon-btn img {
   width: 100%;
-  max-width: 48px;
-  height: auto;
+  height: 100%;
   object-fit: contain;
-}
-.icon-btn span {
-  font-size: 9px;
-  font-weight: 600;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
 }
 .icon-btn.off {
   opacity: 0.4;
@@ -104,11 +115,6 @@ body {
 .icon-btn.alerting {
   animation: glow .5s ease-in-out infinite alternate;
 }
-.icon-btn.empty {
-  border: 3px solid #3a3020;
-  background: #221d14;
-  cursor: default;
-}
 @keyframes glow {
   from { box-shadow: 0 0 4px rgba(245,158,11,.4); }
   to   { box-shadow: 0 0 18px rgba(245,158,11,1); }
@@ -118,7 +124,7 @@ body {
 .icon-btn::after {
   content: "";
   position: absolute;
-  top: 5px; right: 5px;
+  top: 4px; right: 4px;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: #22c55e;
@@ -276,22 +282,30 @@ body {
 
     <div>
       <div class="icon-grid">
-        <button class="icon-btn on" id="btn-lootbeam" title="Lootbeam alert">
-          <img src="lootbeam.png" alt="">
-          <span>Lootbeam</span>
-        </button>
-        <button class="icon-btn on" id="btn-scripture" title="Scripture of Elidinis">
-          <img src="scripture.png" alt="">
-          <span>Scripture</span>
-        </button>
-        <button class="icon-btn on" id="btn-lobby" title="15-min lobby timer">
-          <img src="lobby.png" alt="">
-          <span>Lobby</span>
-        </button>
-        <button class="icon-btn on" id="btn-xp" title="XP Checker">
-          <img src="xp.png" alt="">
-          <span>XP Check</span>
-        </button>
+        <div class="btn-wrap">
+          <button class="icon-btn on" id="btn-lootbeam" title="Lootbeam alert">
+            <img src="lootbeam.png" alt="">
+          </button>
+          <span class="btn-label">Lootbeam</span>
+        </div>
+        <div class="btn-wrap">
+          <button class="icon-btn on" id="btn-scripture" title="Scripture of Elidinis">
+            <img src="scripture.png" alt="">
+          </button>
+          <span class="btn-label">Scripture</span>
+        </div>
+        <div class="btn-wrap">
+          <button class="icon-btn on" id="btn-lobby" title="15-min lobby timer">
+            <img src="lobby.png" alt="">
+          </button>
+          <span class="btn-label">Lobby</span>
+        </div>
+        <div class="btn-wrap">
+          <button class="icon-btn on" id="btn-xp" title="XP Checker">
+            <img src="xp.png" alt="">
+          </button>
+          <span class="btn-label">XP Check</span>
+        </div>
       </div>
       <div id="last-alert" class="last-alert"></div>
     </div>
