@@ -481,10 +481,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (typeof alt1 !== "undefined") {
     alt1.identifyAppUrl(cfgUrl);
-    updateStatus("Alt1 connected — scanning...");
-    setInterval(scanChatbox, SCAN_MS);
+    if (!alt1.permissionPixel) {
+      updateStatus('\u26a0 Not added yet — <a href="alt1://addapp/' + cfgUrl + '" style="color:#f59e0b">click here to add</a>');
+    } else {
+      updateStatus("Alt1 connected — scanning...");
+      setInterval(scanChatbox, SCAN_MS);
+    }
   } else {
-    updateStatus("Open in Alt1 — alt1://addapp/" + cfgUrl);
+    updateStatus("Open in Alt1 to add");
   }
 
   // Lootbeam toggle
