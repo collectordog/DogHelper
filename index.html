@@ -474,7 +474,7 @@ var chatReader = null;
 
 function initChatReader() {
   if (typeof Chatbox === "undefined") { updateStatus("Chatbox lib missing"); return; }
-  chatReader = new Chatbox.default();
+  chatReader = new (Chatbox.ChatBoxReader || Chatbox.default)();
   chatReader.readargs = {
     colors: [
       mixColor(245,151,0),   // lootbeam
