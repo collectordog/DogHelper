@@ -657,14 +657,14 @@ function stopLobby() {
 function updateStatus(msg) { document.getElementById("status-bar").innerHTML=msg; }
 
 function showChatboxOverlay() {
-  if (typeof alt1 === "undefined" || !alt1.permissionOverlay) return;
+  if (typeof alt1 === "undefined") return;
   if (!chatReader || !chatReader.pos || !chatReader.pos.mainbox) return;
   const r = chatReader.pos.mainbox.rect;
-  alt1.overLayRect(
-    A1lib.mixColor(245, 151, 0),
-    r.x, r.y, r.w, r.h,
-    3000, 2
-  );
+  const color = (typeof A1lib !== "undefined" && A1lib.mixColor)
+    ? A1lib.mixColor(245, 151, 0)
+    : ((255<<24)|(245<<16)|(151<<8)|0) >>> 0;
+  updateStatus("Box: "+r.x+","+r.y+" "+r.w+"x"+r.h+" perm:"+alt1.permissionOverlay);
+  try { alt1.overLayRect(color, r.x, r.y, r.w, r.h, 3000, 2); } catch(e) { updateStatus("overlay err: "+e.message); }
 }
 
 // ── Toggle buttons ────────────────────────────────────────────────────────────
