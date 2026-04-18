@@ -423,20 +423,20 @@ function playAlert(urgent) {
 }
 
 // ── Lootbeam repeating sound ──────────────────────────────────────────────────
-var lootbeamSoundInterval = null;
+var alertSoundIntervals = { lootbeam: null, scripture: null };
 
 function playWav() {
   try { new Audio("alert.wav").play(); } catch(e) {}
 }
 
-function startLootbeamSound() {
-  stopLootbeamSound();
+function startRepeatingSound(id) {
+  stopRepeatingSound(id);
   playWav();
-  lootbeamSoundInterval = setInterval(playWav, 5000);
+  alertSoundIntervals[id] = setInterval(playWav, 5000);
 }
 
-function stopLootbeamSound() {
-  if (lootbeamSoundInterval) { clearInterval(lootbeamSoundInterval); lootbeamSoundInterval = null; }
+function stopRepeatingSound(id) {
+  if (alertSoundIntervals[id]) { clearInterval(alertSoundIntervals[id]); alertSoundIntervals[id] = null; }
 }
 
 // ── Alert trigger ─────────────────────────────────────────────────────────────
@@ -445,8 +445,8 @@ function triggerAlert(id, urgent=false) {
   if (now - lastAlert[id] < ALERT_COOLDOWN) return;
   lastAlert[id] = now;
 
-  if (id === "lootbeam") {
-    startLootbeamSound();
+  if (id === "lootbeam" || id === "scripture") {
+    startRepeatingSound(id);
   } else {
     playAlert(urgent);
   }
@@ -613,8 +613,8 @@ function updateStatus(msg) { document.getElementById("status-bar").innerHTML=msg
 function toggleBtn(id) {
   const btn=document.getElementById("btn-"+id);
   // If lootbeam is alerting, clicking dismisses the sound without toggling
-  if (id==="lootbeam" && btn.classList.contains("alerting")) {
-    stopLootbeamSound();
+  if ((id==="lootbeam" || id==="scripture") && btn.classList.contains("alerting")) {
+    stopRepeatingSound(id);
     btn.classList.remove("alerting");
     return;
   }
