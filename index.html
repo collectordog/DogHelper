@@ -665,7 +665,7 @@ function showChatboxOverlay() {
   const color = (typeof A1lib !== "undefined" && A1lib.mixColor)
     ? A1lib.mixColor(245, 151, 0)
     : ((255<<24)|(245<<16)|(151<<8)|0) >>> 0;
-  try { alt1.overLayRect(color, r.x, r.y, r.w, r.h, 3000, 2); debugLog("overlay drawn"); }
+  try { alt1.overLayRect(color, r.x, r.y, r.width||r.w, r.height||r.h, 3000, 2); debugLog("overlay drawn"); }
   catch(e) { debugLog("overlay err: "+e.message); }
 }
 
