@@ -531,7 +531,7 @@ function initChatReader() {
         clearInterval(findTimer);
         updateStatus("Chatbox found — monitoring");
         showChatboxOverlay();
-        setInterval(() => { readChat(); scanScripturePixels(); }, 250);
+        setInterval(readChat, 250);
       }
     } catch(e) {}
   }, 800);
@@ -575,40 +575,9 @@ function readChat() {
   }
 }
 
-// ── Scripture pixel scan (fallback if text color not in readargs) ─────────────
-var lastScriptureGreenCount = 0;
-
-function scanScripturePixels() {
-  if (!settings.scripture) return;
-  if (typeof alt1 === "undefined" || !chatReader || !chatReader.pos || !chatReader.pos.mainbox) return;
-  const r = chatReader.pos.mainbox.rect;
-  try {
-    const capFn = A1lib.captureHold || A1lib.capture || A1lib.captureHoldFullRs;
-    if (!capFn) { debugLog("scripture px: no capture fn on A1lib. keys:"+Object.keys(A1lib).join(",")); return; }
-    const img = (A1lib.captureHold || A1lib.capture)
-      ? (A1lib.captureHold || A1lib.capture).call(A1lib, r.x, r.y, r.width||r.w, r.height||r.h)
-      : A1lib.captureHoldFullRs();
-    if (!img || !img.data) { debugLog("scripture px: capture returned nothing"); return; }
-    const px = img.data; // RGBA Uint8ClampedArray
-    let green = 0;
-    for (let i = 0; i < px.length; i += 4) {
-      // RGBA: px[i]=R, px[i+1]=G, px[i+2]=B, px[i+3]=A
-      // Lime green = R:30, G:251, B:0
-      if (Math.abs(px[i]-30)<25 && Math.abs(px[i+1]-251)<15 && px[i+2]<25) green++;
-    }
-    debugLog("scripture px: green="+green+" prev="+lastScriptureGreenCount);
-    if (green > lastScriptureGreenCount + 15) {
-      debugLog("scripture: new lime green burst detected");
-      triggerAlert("scripture");
-    }
-    lastScriptureGreenCount = green;
-  } catch(e) { debugLog("scripture px err: "+e.message); }
-}
-
 // ── Force scan (scan-btn) ─────────────────────────────────────────────────────
 function forceScan() {
   readChat();
-  scanScripturePixels();
   checkXp();
   showChatboxOverlay();
 }
