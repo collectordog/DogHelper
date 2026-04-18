@@ -560,9 +560,8 @@ function readChat() {
     }
 
     if (settings.scripture) {
-      const hasCol   = line.fragments.some(f=>fragMatchesColors(f, SCRIPTURE_COLORS, 50));
       const hasPhrase = SCRIPTURE_PHRASES.some(p=>text.includes(p));
-      if (hasCol && hasPhrase) triggerAlert("scripture");
+      if (hasPhrase) triggerAlert("scripture");
     }
   }
 }
