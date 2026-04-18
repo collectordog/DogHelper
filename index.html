@@ -546,6 +546,7 @@ function forceScan() {
 var xpReader = null;
 var lastXpTotal = null;
 var lastXpChange = Date.now();
+const XP_REPEAT_MS = 3000;
 
 function initXpReader() {
   const ReaderClass = (typeof Xpcounter !== "undefined") &&
@@ -569,10 +570,11 @@ function checkXp() {
     if (lastXpTotal === null || total !== lastXpTotal) {
       lastXpTotal = total;
       lastXpChange = Date.now();
-      xpAlerted = false;
-    } else if (Date.now() - lastXpChange > XP_IDLE_MS && !xpAlerted) {
-      xpAlerted = true;
-      triggerAlert("xp");
+      lastAlert["xp"] = 0; // reset so next idle triggers immediately
+    } else if (Date.now() - lastXpChange > XP_IDLE_MS) {
+      if (Date.now() - lastAlert["xp"] >= XP_REPEAT_MS) {
+        triggerAlert("xp");
+      }
     }
   } catch(e) {}
 }
