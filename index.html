@@ -390,7 +390,13 @@ const LOOTBEAM_PHRASES = [
 ];
 const LOOTBEAM_COLORS  = [[245,151,0]];
 
-const SCRIPTURE_PHRASES = ["soul appears"];
+const SCRIPTURE_PHRASES = [
+  "soul appears",  // full capture
+  "soul a",        // "appears" partly captured
+  "ful soul",      // "vengeful soul" partly captured
+  "vengeful soul",
+  "mimicking soul",
+];
 const SCRIPTURE_COLORS  = [[255,255,255],[127,169,255],[30,251,0],[233,47,47]];
 
 const LOBBY_DELAY    = 900;   // 15:00 background lobby alert
@@ -577,8 +583,12 @@ function scanScripturePixels() {
   if (typeof alt1 === "undefined" || !chatReader || !chatReader.pos || !chatReader.pos.mainbox) return;
   const r = chatReader.pos.mainbox.rect;
   try {
-    const img = A1lib.captureHold(r.x, r.y, r.width||r.w, r.height||r.h);
-    if (!img || !img.data) return;
+    const capFn = A1lib.captureHold || A1lib.capture || A1lib.captureHoldFullRs;
+    if (!capFn) { debugLog("scripture px: no capture fn on A1lib. keys:"+Object.keys(A1lib).join(",")); return; }
+    const img = (A1lib.captureHold || A1lib.capture)
+      ? (A1lib.captureHold || A1lib.capture).call(A1lib, r.x, r.y, r.width||r.w, r.height||r.h)
+      : A1lib.captureHoldFullRs();
+    if (!img || !img.data) { debugLog("scripture px: capture returned nothing"); return; }
     const px = img.data; // RGBA Uint8ClampedArray
     let green = 0;
     for (let i = 0; i < px.length; i += 4) {
