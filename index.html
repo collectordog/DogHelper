@@ -361,8 +361,10 @@ body {
   </div>
 </div>
 
-<script src="https://unpkg.com/@runeapps/alt1@3.7.0/dist/base.min.js"></script>
-<script src="https://unpkg.com/@runeapps/alt1@3.7.0/dist/chatbox.min.js"></script>
+<script src="https://unpkg.com/alt1@0.1.2/dist/base/index.js"></script>
+<script src="https://unpkg.com/alt1@0.1.2/dist/ocr/index.js"></script>
+<script src="https://unpkg.com/alt1@0.1.2/dist/chatbox/index.js"></script>
+<script src="https://unpkg.com/alt1@0.1.2/dist/xpcounter/index.js"></script>
 <script>
 // ── Config (from JSON) ────────────────────────────────────────────────────────
 const LOOTBEAM_PHRASES = [
@@ -502,8 +504,6 @@ function initChatReader() {
     } catch(e) {}
   }, 2000);
 
-  // XP pixel scan runs independently
-  setInterval(scanXp, 600);
 }
 
 // ── Chat read loop (250ms) ────────────────────────────────────────────────────
@@ -542,21 +542,38 @@ function forceScan() {
   scanXp();
 }
 
-// ── XP drop scan (pixel, 600ms) ───────────────────────────────────────────────
-function scanXp() {
-  if (!settings.xp || typeof alt1==="undefined" || !alt1.permissionPixel) return;
+// ── XP counter reader ─────────────────────────────────────────────────────────
+var xpReader = null;
+var lastXpTotal = null;
+var lastXpChange = Date.now();
+
+function initXpReader() {
+  const ReaderClass = (typeof Xpcounter !== "undefined") &&
+    (Xpcounter.XpcounterReader || Xpcounter.default);
+  if (!ReaderClass) { console.warn("Xpcounter library not available"); return; }
+
+  xpReader = new ReaderClass();
+  xpReader.findAsync();
+
+  // Re-find if lost
+  setInterval(() => { if (!xpReader.pos) xpReader.findAsync(); }, 2000);
+  setInterval(checkXp, 250);
+}
+
+function checkXp() {
+  if (!settings.xp || !xpReader || !xpReader.pos) return;
   try {
-    const rsW=alt1.rsWidth, rsH=alt1.rsHeight, rsX=alt1.rsX, rsY=alt1.rsY;
-    if (!rsW||!rsH) return;
-    const px = alt1.capture(rsX+Math.floor(rsW*0.65), rsY+Math.floor(rsH*0.03),
-                            Math.floor(rsW*0.35), Math.floor(rsH*0.35));
-    if (!px) return;
-    let hasXp = false;
-    for (let i=0; i<px.length; i+=4) {
-      if (px[i]>200 && px[i+1]>180 && px[i+2]<80) { hasXp=true; break; }
+    xpReader.read();
+    if (!xpReader.values || !xpReader.values.length) return;
+    const total = xpReader.values.reduce((a, b) => a + b, 0);
+    if (lastXpTotal === null || total !== lastXpTotal) {
+      lastXpTotal = total;
+      lastXpChange = Date.now();
+      xpAlerted = false;
+    } else if (Date.now() - lastXpChange > XP_IDLE_MS && !xpAlerted) {
+      xpAlerted = true;
+      triggerAlert("xp");
     }
-    if (hasXp) { lastXpSeen=Date.now(); xpAlerted=false; }
-    else if (Date.now()-lastXpSeen > XP_IDLE_MS && !xpAlerted) { xpAlerted=true; triggerAlert("xp"); }
   } catch(e) {}
 }
 
@@ -639,6 +656,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       updateStatus("Alt1 connected — finding chatbox...");
       initChatReader();
+      initXpReader();
     }
   } else {
     updateStatus("Open in Alt1 to use");
