@@ -499,15 +499,16 @@ function initChatReader() {
 
 // ── Chat read loop (250ms) ────────────────────────────────────────────────────
 function readChat() {
-  if (!chatReader) return;
+  if (!chatReader) { updateStatus("ERR: no chatReader"); return; }
   var lines;
-  try { lines = chatReader.read(); } catch(e) { return; }
+  try { lines = chatReader.read(); } catch(e) { updateStatus("ERR read: "+e.message); return; }
 
   if (!lines || !lines.length) {
     if (++emptyReads >= 10) { emptyReads=0; try { chatReader.pos=null; chatReader.find(); } catch(e){} }
     return;
   }
   emptyReads = 0;
+  updateStatus("Reading "+lines.length+" lines | last: "+(lines[0]&&lines[0].text||"?").slice(0,40));
 
   for (const line of lines) {
     if (!line.fragments || !line.fragments.length) continue;
