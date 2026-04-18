@@ -499,6 +499,15 @@ var chatReader = null;
 function initChatReader() {
   if (typeof Chatbox === "undefined") { updateStatus("Chatbox lib missing"); return; }
   chatReader = new (Chatbox.ChatBoxReader || Chatbox.default)();
+  // Add colors not in the default readargs so orange lootbeam text is captured
+  [
+    [245,151,0],  // lootbeam orange
+    [30,251,0],   // scripture green
+    [233,47,47],  // scripture red
+  ].forEach(([r,g,b]) => {
+    const mc = mixColor(r,g,b);
+    if (!chatReader.readargs.colors.includes(mc)) chatReader.readargs.colors.push(mc);
+  });
 
   // Find chatbox, retry every 800ms until found
   var findTimer = setInterval(() => {
