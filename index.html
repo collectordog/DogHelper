@@ -334,17 +334,17 @@ body {
       <div id="last-alert" class="last-alert"></div>
     </div>
 
-    <div>
-      <div class="timer-box">
+    <div style="display:flex;align-items:center;gap:5px;">
+      <div class="timer-box" style="flex:1;">
         <div id="timer-display" class="timer-display">60:00</div>
-        <button class="scan-btn" id="scan-btn" title="Force scan chatbox">👁</button>
         <button class="timer-reset" id="timer-reset" title="Reset">↺</button>
         <button class="timer-play" id="timer-play">
           <div class="play-icon" id="play-icon"></div>
         </button>
       </div>
-      <div id="status-bar" class="status-bar">Connecting...</div>
+      <button class="scan-btn" id="scan-btn" title="Force scan chatbox">👁</button>
     </div>
+    <div id="status-bar" class="status-bar">Connecting...</div>
 
   </div>
 </div>
