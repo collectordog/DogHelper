@@ -59,12 +59,11 @@ body {
 
 /* ── Icon grid ── */
 .icon-grid {
-  flex: 1;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: clamp(4px, 1.5vw, 8px);
-  min-height: 0;
+  flex-shrink: 0;
 }
 
 .btn-wrap {
@@ -92,8 +91,7 @@ body {
 
 .icon-btn {
   width: 100%;
-  flex: 1;
-  min-height: 0;
+  height: clamp(45px, 18vw, 90px);
   background: #f5f0e8;
   border: clamp(2px, 0.6vw, 3px) solid #d4cfc6;
   border-radius: clamp(6px, 2vw, 12px);
