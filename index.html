@@ -344,6 +344,20 @@ body {
   <h2>Settings</h2>
 
   <div style="background:#2b2416;border-radius:8px;padding:10px 12px">
+    <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Layout</div>
+    <label class="setting-row" style="cursor:pointer">
+      <div class="setting-info">
+        <span class="setting-label">Timer only mode</span>
+        <span class="setting-desc">Hide alert buttons — show only the timer</span>
+      </div>
+      <div class="toggle-switch">
+        <input type="checkbox" id="setting-timeronly">
+        <span class="slider"></span>
+      </div>
+    </label>
+  </div>
+
+  <div style="background:#2b2416;border-radius:8px;padding:10px 12px">
     <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Startup</div>
     <label class="setting-row" style="cursor:pointer">
       <div class="setting-info">
@@ -423,7 +437,7 @@ const lastAlert  = { lootbeam:0, scripture:0, xp:0, lobby:0 };
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function loadSettings() {
-  const def = { lootbeam:true, scripture:true, lobby:true, xp:true, debuglog:false };
+  const def = { lootbeam:true, scripture:true, lobby:true, xp:true, debuglog:false, timeronly:false };
   try { return Object.assign(def, JSON.parse(localStorage.getItem("doghelper")||"{}")); }
   catch { return def; }
 }
@@ -744,6 +758,19 @@ document.addEventListener("DOMContentLoaded", () => {
   debugToggle.addEventListener("change", () => {
     settings.debuglog = debugToggle.checked;
     document.getElementById("debug-log").style.display = settings.debuglog ? "block" : "none";
+    saveSettings();
+  });
+
+  function applyTimerOnly(on) {
+    document.querySelector(".icon-grid").style.display = on ? "none" : "";
+    document.getElementById("last-alert").style.display = on ? "none" : "";
+  }
+  const timerOnlyToggle = document.getElementById("setting-timeronly");
+  timerOnlyToggle.checked = settings.timeronly;
+  applyTimerOnly(settings.timeronly);
+  timerOnlyToggle.addEventListener("change", () => {
+    settings.timeronly = timerOnlyToggle.checked;
+    applyTimerOnly(settings.timeronly);
     saveSettings();
   });
 
