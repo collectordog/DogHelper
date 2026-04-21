@@ -470,7 +470,25 @@ function playAlert(urgent) {
   } catch(e) {}
 }
 
-// ── Lootbeam repeating sound ──────────────────────────────────────────────────
+// ── RS focus watcher — dismiss alerts when player clicks back into RS ─────────
+var rsWasActive = false;
+function checkRsFocus() {
+  if (typeof alt1 === "undefined") return;
+  const rsNowActive = !!alt1.rsActive;
+  if (rsNowActive && !rsWasActive) {
+    // RS just became active — player clicked into the game
+    ["lootbeam","scripture"].forEach(id => {
+      if (alertSoundIntervals[id]) {
+        stopRepeatingSound(id);
+        const btn = document.getElementById("btn-"+id);
+        if (btn) btn.classList.remove("alerting");
+      }
+    });
+  }
+  rsWasActive = rsNowActive;
+}
+
+// ── Repeating sound ───────────────────────────────────────────────────────────
 var alertSoundIntervals = { lootbeam: null, scripture: null };
 
 function playWav() {
@@ -545,7 +563,7 @@ function initChatReader() {
         clearInterval(findTimer);
         updateStatus("Chatbox found — monitoring");
         showChatboxOverlay();
-        setInterval(readChat, 250);
+        setInterval(() => { readChat(); checkRsFocus(); }, 250);
       }
     } catch(e) {}
   }, 800);
